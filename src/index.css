@@ -1,0 +1,31 @@
+@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;700;800;900&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Montserrat", "Helvetica Neue", Arial, sans-serif;
+  --color-natural-bg: #F4F1E8;
+  --color-natural-text: #4A4A4A;
+  --color-natural-sage: #8BA888;
+  --color-natural-ochre: #D4A373;
+  --color-natural-clay: #B07D62;
+  --color-natural-sky: #A8C6D4;
+}
+
+@layer base {
+  body {
+    @apply antialiased overflow-x-hidden bg-natural-bg text-natural-text transition-colors duration-500;
+  }
+}
+
+@layer components {
+  .custom-scrollbar::-webkit-scrollbar {
+    height: 8px;
+  }
+  .custom-scrollbar::-webkit-scrollbar-track {
+    @apply bg-transparent;
+  }
+  .custom-scrollbar::-webkit-scrollbar-thumb {
+    @apply bg-natural-ochre/30 rounded-full hover:bg-natural-ochre/50 transition-colors;
+  }
+}
+
