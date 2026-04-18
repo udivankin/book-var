@@ -3,10 +3,10 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { useState, useEffect, useCallback, useRef, ChangeEvent } from "react";
+import { useState, useEffect, useCallback, useRef, ChangeEvent, Fragment } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import confetti from "canvas-confetti";
-import { Upload, RefreshCw, Trash2, Tag, Type } from "lucide-react";
+import { Upload, RefreshCw, Trash2, Tag, Type, Volume2 } from "lucide-react";
 import { parseSyllablesWithAccent } from "./utils/wordParser";
 
 type Level = 'words' | 'sentences';
@@ -58,6 +58,60 @@ export default function App() {
   const [currentSyllableIndex, setCurrentSyllableIndex] = useState(0);
   const [isWordFinished, setIsWordFinished] = useState(false);
   const [showUploadModal, setShowUploadModal] = useState(false);
+
+  const speak = (text: string) => {
+    if ('speechSynthesis' in window) {
+      window.speechSynthesis.cancel();
+      // Remove hyphens, capitalized stress markers (via toLowerCase), and combining accent markers
+      const cleanText = text.replace(/-/g, '').toLowerCase().replace(/\u0301/g, '');
+      const utterance = new SpeechSynthesisUtterance(cleanText);
+      
+      const voices = window.speechSynthesis.getVoices();
+      console.log('Available voices:', voices.length);
+      
+      // Look for Russian voice
+      const russianVoice = voices.find(v => v.lang.includes('ru') || v.lang.includes('RU')) 
+                        || voices.find(v => v.name.toLowerCase().includes('russian'));
+      
+      if (russianVoice) {
+        console.log('Selected Russian voice:', russianVoice.name, russianVoice.lang);
+        utterance.voice = russianVoice;
+      } else {
+        console.warn('Russian voice not found! Fallback to default.');
+        voices.forEach(v => console.log(`- ${v.name} (${v.lang})`));
+      }
+      
+      utterance.lang = 'ru-RU';
+      utterance.rate = 0.8;
+      utterance.pitch = 1.1; 
+      
+      utterance.onerror = (e) => console.error('SpeechSynthesis error:', e);
+      utterance.onstart = () => console.log('Speech started for (cleaned):', cleanText);
+      
+      window.speechSynthesis.speak(utterance);
+    } else {
+      console.error('SpeechSynthesis not supported in this browser.');
+    }
+  };
+
+  useEffect(() => {
+    const loadVoices = () => {
+      if ('speechSynthesis' in window) {
+        const voices = window.speechSynthesis.getVoices();
+        console.log('Voices loaded/changed:', voices.length);
+      }
+    };
+    
+    loadVoices();
+    if ('speechSynthesis' in window) {
+      window.speechSynthesis.onvoiceschanged = loadVoices;
+    }
+    return () => {
+      if ('speechSynthesis' in window) {
+        window.speechSynthesis.onvoiceschanged = null;
+      }
+    };
+  }, []);
 
   // Persistence Effects
   useEffect(() => {
@@ -278,7 +332,7 @@ export default function App() {
         </div>
       </aside>
 
-      <div className="flex-1 flex flex-col items-center justify-start relative">
+      <div className="flex-1 flex flex-col items-center lg:items-start justify-start relative lg:pl-8">
         {/* Mobile Level Switcher */}
         <div className="lg:hidden w-full max-w-4xl px-4">
           <div className="flex bg-white shadow-sm p-1 rounded-xl border-2 border-[#E5E1D3]">
@@ -298,7 +352,7 @@ export default function App() {
         </div>
 
         {/* Header */}
-        <header className="w-full max-w-4xl flex justify-between items-center mb-10 px-4 md:px-10 z-10">
+        <header className="w-full max-w-4xl flex justify-between items-center mb-10 px-4 lg:px-0 z-10">
           <div className="flex flex-col gap-1 items-start">
             <h1 className="text-2xl md:text-3xl font-[800] tracking-[2px] text-natural-sage uppercase">
               Букварь Онлайн
@@ -321,18 +375,11 @@ export default function App() {
             >
               <Type className="w-5 h-5" />
             </button>
-            <button
-              onClick={() => setShowUploadModal(true)}
-              className="p-2.5 bg-white border-b-4 border-[#D1CEC4] hover:translate-y-[1px] hover:border-b-2 active:translate-y-[4px] active:border-b-0 rounded-xl transition-all"
-              title="Загрузить свой список"
-            >
-              <Upload className="w-5 h-5 text-natural-sage" />
-            </button>
           </div>
         </header>
 
         {/* Main Game Area */}
-        <main className="w-full max-w-[900px] flex flex-col items-center gap-10 md:gap-12 z-10 px-2">
+        <main className="w-full max-w-[900px] flex flex-col items-center lg:items-start gap-10 md:gap-12 z-10 px-2 lg:px-0">
           <div className="relative w-full min-h-[400px] md:min-h-[500px] flex flex-col items-center justify-center bg-white rounded-[40px] md:rounded-[60px] shadow-[0_20px_0_#E5E1D3] border-8 border-white p-4">
             
             {loading ? (
@@ -374,35 +421,45 @@ export default function App() {
                       }
 
                       return (
-                        <div key={`word-${gIdx}`} className="flex flex-nowrap gap-2 md:gap-4 items-center">
-                          {group.items.map(({ syllable, globalIdx }) => {
+                        <div key={`word-${gIdx}`} className="flex flex-nowrap gap-x-2 md:gap-x-4 items-center relative">
+                          {group.items.map(({ syllable, globalIdx }, itemIdx) => {
                             const isActive = globalIdx === currentSyllableIndex && !isWordFinished;
                             const isRead = globalIdx < currentSyllableIndex || isWordFinished;
                             const colorClass = SYLLABLE_COLORS[globalIdx % SYLLABLE_COLORS.length];
+                            const isLastInWord = itemIdx === group.items.length - 1;
 
                             return (
-                              <motion.div
-                                key={`${currentItem}-${globalIdx}`}
-                                onClick={() => {
-                                    if (globalIdx === currentSyllableIndex) nextAction();
-                                }}
-                                animate={isActive ? { scale: [1, 1.05, 1] } : { scale: 1 }}
-                                transition={isActive ? { repeat: Infinity, duration: 1.5 } : {}}
-                                className={`
-                                  flex-shrink-0 transition-all duration-300 cursor-pointer select-none 
-                                  ${scaleStyles.padding} 
-                                  rounded-xl md:rounded-[30px] border-b-4 md:border-b-[8px]
-                                  ${isRead || isActive 
-                                    ? `${colorClass} text-white` 
-                                    : 'bg-[#F4F1E8] border-[#D1CEC4] text-[#D1CEC4] opacity-50'}
-                                  ${isActive ? 'shadow-xl -translate-y-1 md:-translate-y-2' : ''}
-                                `}
-                                style={scaleStyles.fontSize ? { fontSize: scaleStyles.fontSize } : {}}
-                              >
-                                <span className={scaleStyles.fontSize ? 'font-black uppercase leading-none' : `${level === 'words' ? 'text-4xl md:text-[100px]' : 'text-xl md:text-[32px]'} font-black uppercase leading-none`}>
-                                  {syllable}
-                                </span>
-                              </motion.div>
+                              <Fragment key={`${currentItem}-${globalIdx}`}>
+                                <motion.div
+                                  onClick={() => {
+                                      speak(syllable);
+                                      if (globalIdx === currentSyllableIndex) nextAction();
+                                  }}
+                                  animate={isActive ? { scale: [1, 1.05, 1] } : { scale: 1 }}
+                                  transition={isActive ? { repeat: Infinity, duration: 1.5 } : {}}
+                                  className={`
+                                    relative z-10 flex-shrink-0 transition-all duration-300 cursor-pointer select-none 
+                                    ${scaleStyles.padding} 
+                                    rounded-xl md:rounded-[30px] border-b-4 md:border-b-[8px]
+                                    ${isRead || isActive 
+                                      ? `${colorClass} text-white` 
+                                      : 'bg-[#F4F1E8] border-[#D1CEC4] text-[#D1CEC4] opacity-50'}
+                                    ${isActive ? 'shadow-xl -translate-y-1 md:-translate-y-2' : ''}
+                                  `}
+                                  style={scaleStyles.fontSize ? { fontSize: scaleStyles.fontSize } : {}}
+                                >
+                                  <span className={scaleStyles.fontSize ? 'font-black uppercase leading-none' : `${level === 'words' ? 'text-4xl md:text-[100px]' : 'text-xl md:text-[32px]'} font-black uppercase leading-none`}>
+                                    {syllable}
+                                  </span>
+                                </motion.div>
+                                
+                                {!isLastInWord && (
+                                  <div 
+                                    className={`h-0.5 md:h-1 w-2 md:w-4 -mx-1 md:-mx-2 self-center transition-colors duration-300 ${isRead ? 'bg-[#D4A373]' : 'bg-[#E5E1D3]'}`} 
+                                    style={{ marginTop: '-4px' }}
+                                  />
+                                )}
+                              </Fragment>
                             );
                           })}
                         </div>
@@ -416,9 +473,18 @@ export default function App() {
             {/* Info Display */}
             <div className="mt-8 flex items-center gap-4 text-gray-400 text-lg md:text-2xl italic font-medium">
                <span className="text-4xl md:text-5xl not-italic">📖</span>
-               <span className="uppercase tracking-[2px]">
-                 {level === 'words' ? 'Слово' : 'Предложение'}
-               </span>
+               <div className="flex items-center gap-3">
+                 <span className="uppercase tracking-[2px]">
+                   {level === 'words' ? 'Слово' : 'Предложение'}
+                 </span>
+                 <button
+                   onClick={() => speak(dictionary[currentWordIndex])}
+                   className="p-1.5 bg-white shadow-sm border-2 border-[#E5E1D3] hover:border-natural-sage rounded-full transition-all group active:scale-95"
+                   title="Озвучить целиком"
+                 >
+                   <Volume2 className="w-6 h-6 md:w-8 h-8 text-gray-300 group-hover:text-natural-sage transition-colors" />
+                 </button>
+               </div>
             </div>
 
             {/* Mascot SVG */}
