@@ -272,6 +272,8 @@ export default function App() {
 
   const nextAction = useCallback(() => {
     if (isWordFinished) {
+      // Immediately stop all previous animations (confetti)
+      confetti.reset();
       const nextIdx = (currentWordIndex + 1) % dictionary.length;
       setCurrentWordIndex(nextIdx);
       setCurrentSyllableIndex(0);
@@ -283,9 +285,14 @@ export default function App() {
         setIsWordFinished(true);
         confetti({
           particleCount: 150,
-          spread: 70,
-          origin: { y: 0.6 },
-          colors: ['#FF6B6B', '#4ECDC4', '#FFE66D', '#FF9F1C', '#2EC4B6']
+          spread: 80,
+          origin: { 
+            x: 0.2 + Math.random() * 0.6, // Random x between 0.2 and 0.8
+            y: 0.4 + Math.random() * 0.3  // Random y between 0.4 and 0.7
+          },
+          colors: ['#FF6B6B', '#4ECDC4', '#FFE66D', '#FF9F1C', '#2EC4B6'],
+          ticks: 200,
+          gravity: 1.2
         });
       }
     }
@@ -541,9 +548,6 @@ export default function App() {
             <div className="mt-8 flex items-center gap-4 text-gray-400 text-lg md:text-2xl italic font-medium">
                <span className="text-4xl md:text-5xl not-italic">📖</span>
                <div className="flex items-center gap-3">
-                 <span className="uppercase tracking-[2px]">
-                   {level === 'words' ? 'Слово' : 'Предложение'}
-                 </span>
                  <button
                    onClick={() => speak(dictionary[currentWordIndex], true)}
                    className="p-1.5 bg-white shadow-sm border-2 border-[#E5E1D3] hover:border-natural-sage rounded-full transition-all group active:scale-95"
