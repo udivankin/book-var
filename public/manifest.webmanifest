@@ -1,0 +1,21 @@
+{
+  "name": "Букварь Онлайн",
+  "short_name": "Букварь",
+  "description": "Приложение для обучения детей чтению по слогам",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#FDFCF8",
+  "theme_color": "#8BA888",
+  "icons": [
+    {
+      "src": "https://api.dicebear.com/7.x/shapes/png?seed=bukvar&backgroundColor=8ba888&width=192",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "https://api.dicebear.com/7.x/shapes/png?seed=bukvar&backgroundColor=8ba888&width=512",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
