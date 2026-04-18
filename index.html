@@ -8,9 +8,13 @@
     <meta name="theme-color" content="#8BA888" />
     <link rel="icon" href="https://api.dicebear.com/7.x/shapes/svg?seed=bukvar&backgroundColor=8ba888" />
     <script>
+      // Actively unregister any previously registered service workers
+      // to fix aggressive caching issues that trap users on old versions.
       if ('serviceWorker' in navigator) {
-        window.addEventListener('load', () => {
-          navigator.serviceWorker.register('./sw.js');
+        navigator.serviceWorker.getRegistrations().then(function(registrations) {
+          for(let registration of registrations) {
+            registration.unregister();
+          }
         });
       }
     </script>

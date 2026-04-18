@@ -62,73 +62,102 @@ export default function App() {
   const speak = (text: string, isWholePhrase: boolean = false) => {
     if ('speechSynthesis' in window) {
       window.speechSynthesis.cancel();
-      // Keep hyphens for the speech engine to get boundary events for each syllable
-      // But strip capitalized stress markers and combining accent markers
-      const cleanText = text.toLowerCase().replace(/\u0301/g, '');
-      const utterance = new SpeechSynthesisUtterance(cleanText);
+      
+      // For natural speech, we MUST remove hyphens. 
+      // "ма-ши-на" -> "машина" (sounds natural)
+      const speechText = text.toLowerCase().replace(/\u0301/g, '').replace(/-/g, '');
+      const utterance = new SpeechSynthesisUtterance(speechText);
       
       const voices = window.speechSynthesis.getVoices();
-      
-      // Look for Russian voice
       const russianVoice = voices.find(v => v.lang.includes('ru') || v.lang.includes('RU')) 
                         || voices.find(v => v.name.toLowerCase().includes('russian'));
       
-      if (russianVoice) {
-        utterance.voice = russianVoice;
-      }
+      if (russianVoice) utterance.voice = russianVoice;
       
       utterance.lang = 'ru-RU';
-      utterance.rate = 0.8;
-      utterance.pitch = 1.1; 
+      utterance.rate = 0.85; // Natural but slightly slower for clarity
+      utterance.pitch = 1.0; 
       
       if (isWholePhrase) {
-        // Calculate mapping of characters to syllable indices in the string WITH hyphens
-        let currentPos = 0;
-        const mapping: { start: number; globalIndex: number }[] = [];
+        // We need to map syllables to words for interpolation
+        const words = text.split(' ');
+        let currentSyllableIdx = 0;
+        const wordSyllableMap: { wordStart: number; syllables: number[] }[] = [];
         
-        allSyllables.forEach((syl, idx) => {
-          const cleanSyl = syl.toLowerCase().replace(/\u0301/g, '');
-          // Find this syllable's position in cleanText starting from currentPos
-          const pos = cleanText.indexOf(cleanSyl, currentPos);
-          if (pos !== -1) {
-            mapping.push({ start: pos, globalIndex: idx });
-            currentPos = pos + cleanSyl.length;
+        let cumulativeSpeechPos = 0;
+        words.forEach(word => {
+          const cleanWord = word.replace(/-/g, '').toLowerCase().replace(/\u0301/g, '');
+          if (!cleanWord) return;
+          
+          const syllableCount = word.split('-').length;
+          const syllableIndices = [];
+          for (let i = 0; i < syllableCount; i++) {
+            syllableIndices.push(currentSyllableIdx++);
           }
+          
+          wordSyllableMap.push({
+            wordStart: cumulativeSpeechPos,
+            syllables: syllableIndices
+          });
+          
+          cumulativeSpeechPos += cleanWord.length + 1; // +1 for space
         });
+
+        let syllableTimer: ReturnType<typeof setTimeout> | null = null;
 
         utterance.onboundary = (event) => {
           if (event.name === 'word') {
-            const index = event.charIndex;
-            // Find the global syllable index that corresponds to this character position
-            let found = mapping[0];
-            for (let i = mapping.length - 1; i >= 0; i--) {
-              if (mapping[i].start <= index) {
-                found = mapping[i];
-                break;
-              }
-            }
+            if (syllableTimer) clearTimeout(syllableTimer);
             
-            if (found !== undefined) {
-              setCurrentSyllableIndex(found.globalIndex);
+            const mapping = wordSyllableMap.find(m => m.wordStart === event.charIndex) ||
+                            wordSyllableMap.reduce((prev, curr) => (curr.wordStart <= event.charIndex ? curr : prev));
+            
+            if (mapping) {
+              // Highlight first syllable of the word immediately
+              setCurrentSyllableIndex(mapping.syllables[0]);
               setIsWordFinished(false);
+              
+              // If word has multiple syllables, interpolate the rest
+              if (mapping.syllables.length > 1) {
+                const syllablesInWord = mapping.syllables.length;
+                // Estimate word duration based on character count and speech rate.
+                // We use a much smaller constant (50) so the visual highlight "sweeps" 
+                // slightly ahead of the audio. This ensures all syllables are highlighted
+                // before the word's audio physically ends (which would cut the timer).
+                const chars = words[wordSyllableMap.indexOf(mapping)].replace(/-/g, '').length;
+                const totalWordTime = (chars * 50) / (utterance.rate); 
+                const timePerSyllable = totalWordTime / syllablesInWord;
+
+                let currentInWord = 1;
+                const nextSyllable = () => {
+                   if (currentInWord < syllablesInWord) {
+                     setCurrentSyllableIndex(mapping.syllables[currentInWord]);
+                     currentInWord++;
+                     syllableTimer = setTimeout(nextSyllable, timePerSyllable);
+                   }
+                };
+                syllableTimer = setTimeout(nextSyllable, timePerSyllable);
+              }
             }
           }
         };
 
         utterance.onend = () => {
-          // Reset to start after finished as requested
-          setCurrentSyllableIndex(0);
-          setIsWordFinished(false);
-          console.log('Speech ended: Resetting progress to first syllable');
+          if (syllableTimer) clearTimeout(syllableTimer);
+          
+          // Ensure the very last syllable is marked as active before resetting
+          setCurrentSyllableIndex(allSyllables.length - 1);
+          setIsWordFinished(true);
+          
+          setTimeout(() => {
+            setCurrentSyllableIndex(0);
+            setIsWordFinished(false);
+          }, 800);
         };
       }
       
-      utterance.onerror = (e) => console.error('SpeechSynthesis error:', e);
-      utterance.onstart = () => console.log('Speech started for (cleaned with hyphens):', cleanText);
-      
+      utterance.onstart = () => console.log('Speech started (Natural):', speechText);
       window.speechSynthesis.speak(utterance);
-    } else {
-      console.error('SpeechSynthesis not supported in this browser.');
     }
   };
 
@@ -216,9 +245,9 @@ export default function App() {
         };
       }
       return {
-        container: 'gap-4 md:gap-12',
+        container: 'gap-4 md:gap-12 lg:gap-16',
         fontSize: '', // Use classes
-        padding: 'px-4 py-3 md:px-8 md:py-6'
+        padding: 'px-4 py-3 md:px-8 md:py-6 lg:px-12 lg:py-8'
       };
     } else {
       // Sentences: Base text-[32px] / xl (20px)
@@ -232,9 +261,9 @@ export default function App() {
         };
       }
       return {
-        container: 'gap-x-4 gap-y-6 md:gap-x-8 md:gap-y-8',
+        container: 'gap-x-4 gap-y-6 md:gap-x-8 md:gap-y-8 lg:gap-x-12 lg:gap-y-10',
         fontSize: '', // Use classes
-        padding: 'px-2 py-1.5 md:px-5 md:py-3'
+        padding: 'px-2 py-1.5 md:px-5 md:py-3 lg:px-8 lg:py-5'
       };
     }
   };
@@ -372,7 +401,7 @@ export default function App() {
 
       <div className="flex-1 flex flex-col items-center lg:items-start justify-start relative lg:pl-8">
         {/* Mobile Level Switcher */}
-        <div className="lg:hidden w-full max-w-4xl px-4">
+        <div className="lg:hidden w-full max-w-6xl px-4">
           <div className="flex bg-white shadow-sm p-1 rounded-xl border-2 border-[#E5E1D3]">
             <button 
               onClick={() => switchLevel('words')}
@@ -390,7 +419,7 @@ export default function App() {
         </div>
 
         {/* Header */}
-        <header className="w-full max-w-4xl flex justify-between items-center mb-10 px-4 lg:px-0 z-10">
+        <header className="w-full max-w-6xl flex justify-between items-center mb-10 px-4 lg:px-0 z-10">
           <div className="flex flex-col gap-1 items-start">
             <h1 className="text-2xl md:text-3xl font-[800] tracking-[2px] text-natural-sage uppercase">
               Букварь Онлайн
@@ -417,8 +446,8 @@ export default function App() {
         </header>
 
         {/* Main Game Area */}
-        <main className="w-full max-w-[900px] flex flex-col items-center lg:items-start gap-10 md:gap-12 z-10 px-2 lg:px-0">
-          <div className="relative w-full min-h-[400px] md:min-h-[500px] flex flex-col items-center justify-center bg-white rounded-[40px] md:rounded-[60px] shadow-[0_20px_0_#E5E1D3] border-8 border-white p-4">
+        <main className="w-full max-w-6xl flex flex-col items-center lg:items-start gap-10 md:gap-12 z-10 px-2 lg:px-0">
+          <div className="relative w-full min-h-[450px] md:min-h-[550px] lg:min-h-[650px] flex flex-col items-center justify-center bg-white rounded-[40px] md:rounded-[60px] shadow-[0_20px_0_#E5E1D3] border-8 border-white p-4">
             
             {loading ? (
               <div className="flex flex-col items-center gap-4 text-natural-sage">
@@ -486,7 +515,7 @@ export default function App() {
                                   `}
                                   style={scaleStyles.fontSize ? { fontSize: scaleStyles.fontSize } : {}}
                                 >
-                                  <span className={scaleStyles.fontSize ? 'font-black uppercase leading-none' : `${level === 'words' ? 'text-4xl md:text-[100px]' : 'text-xl md:text-[32px]'} font-black uppercase leading-none`}>
+                                  <span className={scaleStyles.fontSize ? 'font-black uppercase leading-none' : `${level === 'words' ? 'text-4xl md:text-[100px] lg:text-[130px]' : 'text-xl md:text-[32px] lg:text-[42px]'} font-black uppercase leading-none`}>
                                     {syllable}
                                   </span>
                                 </motion.div>
@@ -538,22 +567,6 @@ export default function App() {
                   <path d="M160 60 Q180 20 140 40" fill="#B07D62" />
               </svg>
             </div>
-
-            {isWordFinished && (
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                className="absolute inset-0 flex items-center justify-center bg-white/60 backdrop-blur-[4px] rounded-[60px] pointer-events-none"
-              >
-                 <motion.div 
-                   animate={{ scale: [1, 1.1, 1] }}
-                   transition={{ repeat: Infinity, duration: 1.5 }}
-                   className="text-7xl md:text-[120px] font-black text-natural-ochre drop-shadow-xl"
-                 >
-                   УРА! ✨
-                 </motion.div>
-              </motion.div>
-            )}
           </div>
 
           {/* Footer Hints */}
