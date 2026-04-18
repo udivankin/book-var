@@ -59,34 +59,72 @@ export default function App() {
   const [isWordFinished, setIsWordFinished] = useState(false);
   const [showUploadModal, setShowUploadModal] = useState(false);
 
-  const speak = (text: string) => {
+  const speak = (text: string, isWholePhrase: boolean = false) => {
     if ('speechSynthesis' in window) {
       window.speechSynthesis.cancel();
-      // Remove hyphens, capitalized stress markers (via toLowerCase), and combining accent markers
-      const cleanText = text.replace(/-/g, '').toLowerCase().replace(/\u0301/g, '');
+      // Keep hyphens for the speech engine to get boundary events for each syllable
+      // But strip capitalized stress markers and combining accent markers
+      const cleanText = text.toLowerCase().replace(/\u0301/g, '');
       const utterance = new SpeechSynthesisUtterance(cleanText);
       
       const voices = window.speechSynthesis.getVoices();
-      console.log('Available voices:', voices.length);
       
       // Look for Russian voice
       const russianVoice = voices.find(v => v.lang.includes('ru') || v.lang.includes('RU')) 
                         || voices.find(v => v.name.toLowerCase().includes('russian'));
       
       if (russianVoice) {
-        console.log('Selected Russian voice:', russianVoice.name, russianVoice.lang);
         utterance.voice = russianVoice;
-      } else {
-        console.warn('Russian voice not found! Fallback to default.');
-        voices.forEach(v => console.log(`- ${v.name} (${v.lang})`));
       }
       
       utterance.lang = 'ru-RU';
       utterance.rate = 0.8;
       utterance.pitch = 1.1; 
       
+      if (isWholePhrase) {
+        // Calculate mapping of characters to syllable indices in the string WITH hyphens
+        let currentPos = 0;
+        const mapping: { start: number; globalIndex: number }[] = [];
+        
+        allSyllables.forEach((syl, idx) => {
+          const cleanSyl = syl.toLowerCase().replace(/\u0301/g, '');
+          // Find this syllable's position in cleanText starting from currentPos
+          const pos = cleanText.indexOf(cleanSyl, currentPos);
+          if (pos !== -1) {
+            mapping.push({ start: pos, globalIndex: idx });
+            currentPos = pos + cleanSyl.length;
+          }
+        });
+
+        utterance.onboundary = (event) => {
+          if (event.name === 'word') {
+            const index = event.charIndex;
+            // Find the global syllable index that corresponds to this character position
+            let found = mapping[0];
+            for (let i = mapping.length - 1; i >= 0; i--) {
+              if (mapping[i].start <= index) {
+                found = mapping[i];
+                break;
+              }
+            }
+            
+            if (found !== undefined) {
+              setCurrentSyllableIndex(found.globalIndex);
+              setIsWordFinished(false);
+            }
+          }
+        };
+
+        utterance.onend = () => {
+          // Reset to start after finished as requested
+          setCurrentSyllableIndex(0);
+          setIsWordFinished(false);
+          console.log('Speech ended: Resetting progress to first syllable');
+        };
+      }
+      
       utterance.onerror = (e) => console.error('SpeechSynthesis error:', e);
-      utterance.onstart = () => console.log('Speech started for (cleaned):', cleanText);
+      utterance.onstart = () => console.log('Speech started for (cleaned with hyphens):', cleanText);
       
       window.speechSynthesis.speak(utterance);
     } else {
@@ -478,7 +516,7 @@ export default function App() {
                    {level === 'words' ? 'Слово' : 'Предложение'}
                  </span>
                  <button
-                   onClick={() => speak(dictionary[currentWordIndex])}
+                   onClick={() => speak(dictionary[currentWordIndex], true)}
                    className="p-1.5 bg-white shadow-sm border-2 border-[#E5E1D3] hover:border-natural-sage rounded-full transition-all group active:scale-95"
                    title="Озвучить целиком"
                  >
