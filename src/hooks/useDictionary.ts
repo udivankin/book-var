@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState, type Dispatch, type SetStateAction } from "react";
+import { useCallback, useEffect, useRef, useState, type Dispatch, type SetStateAction } from "react";
 import { CATEGORIES } from "../constants/categories";
 import type { ParsedDictionaryEntry } from "../types/dictionary";
 import type { Level } from "../types/app";
@@ -21,6 +21,14 @@ type DictionaryState = {
 
 const EMPTY_ENTRY = parseDictionaryEntry("");
 
+function getProgressStorageKey(level: Level, categoryId: string): string | null {
+  if (categoryId === "custom") {
+    return null;
+  }
+
+  return `bukvar-progress-${level}-${categoryId}`;
+}
+
 export function useDictionary({
   activeCategory,
   level,
@@ -29,16 +37,18 @@ export function useDictionary({
   const [dictionary, setDictionary] = useState<ParsedDictionaryEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [currentWordIndex, setCurrentWordIndex] = useState(0);
+  const loadedProgressKeyRef = useRef<string | null>(getProgressStorageKey(level, activeCategory));
 
   useEffect(() => {
-    if (dictionary.length > 0 && activeCategory !== "custom") {
-      localStorage.setItem(`bukvar-progress-${level}-${activeCategory}`, String(currentWordIndex));
+    if (dictionary.length > 0 && loadedProgressKeyRef.current) {
+      localStorage.setItem(loadedProgressKeyRef.current, String(currentWordIndex));
     }
-  }, [activeCategory, currentWordIndex, dictionary.length, level]);
+  }, [currentWordIndex, dictionary.length]);
 
   useEffect(() => {
     const category = CATEGORIES[level].find((item) => item.id === activeCategory) || CATEGORIES[level][0];
     const dictionaryUrl = `${category.file}?v=${encodeURIComponent(__APP_BUILD_ID__)}`;
+    const progressStorageKey = getProgressStorageKey(level, activeCategory);
 
     setLoading(true);
     fetch(dictionaryUrl)
@@ -51,9 +61,10 @@ export function useDictionary({
       })
       .then((text) => {
         const lines = parseDictionaryText(text);
-        const savedProgress = localStorage.getItem(`bukvar-progress-${level}-${activeCategory}`);
+        const savedProgress = progressStorageKey ? localStorage.getItem(progressStorageKey) : null;
         const index = savedProgress ? parseInt(savedProgress, 10) : 0;
 
+        loadedProgressKeyRef.current = progressStorageKey;
         setDictionary(lines);
         setCurrentWordIndex(index < lines.length ? index : 0);
         onResetPlayback();
