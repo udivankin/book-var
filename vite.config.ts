@@ -5,10 +5,13 @@ import {defineConfig, loadEnv} from 'vite';
 
 export default defineConfig(({mode}) => {
   const env = loadEnv(mode, '.', '');
+  const buildId = new Date().toISOString();
+
   return {
     plugins: [react(), tailwindcss()],
     base: './',
     define: {
+      __APP_BUILD_ID__: JSON.stringify(buildId),
       'process.env.GEMINI_API_KEY': JSON.stringify(env.GEMINI_API_KEY),
     },
     resolve: {

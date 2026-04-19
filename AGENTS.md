@@ -23,9 +23,18 @@ A child-friendly, minimalist, and highly accessible online primer ("Bukvar") for
 
 ## 🧩 Core Logic Patterns
 ### Syllable Parsing
-- Data files in `public/data/**/*.txt` are simple line-separated lists.
-- Syllables are expected to be separated by `-` in the string (e.g., `не-бо`).
-- Accents are represented by the `\u0301` combining character.
+- Data files in `public/data/**/*.txt` are simple line-separated lists; one non-empty line is one dictionary item.
+- Built-in dictionaries in `public/data/words/*.txt` and `public/data/sentences/*.txt` should stay at **25 items per file** unless the user asks for a different size.
+- Syllables are expected to be separated by `-` in the source text (e.g., `ко-рО-ва`, `мА-ма мО-ет рА-му.`).
+- Stress in source dictionaries is marked by an uppercase vowel; the app converts it to lowercase plus the `\u0301` combining accent for display.
+- Sentences may include punctuation, but should remain simple, child-friendly, and easy to speak with TTS.
+- Prefer common, natural Russian words over odd colloquialisms or overly cute diminutives when curating dictionaries.
+
+### Dictionaries
+- Treat each `.txt` file under `public/data/words/` or `public/data/sentences/` as a standalone category dictionary.
+- Keep category themes coherent and vocabulary age-appropriate.
+- Avoid blank lines, mixed formats, or entries without syllable separators in multisyllabic words.
+- When editing dictionaries, verify they still load cleanly through `parseDictionaryText()` and render correctly through `parseSyllablesWithAccent()`.
 
 ### TTS & Highlighting (Karaoke Logic)
 - The application uses `window.speechSynthesis`.
