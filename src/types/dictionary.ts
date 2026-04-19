@@ -1,7 +1,17 @@
-export type RewardMarker = {
-  emoji: string;
+export type EmojiRewardMarker = {
+  kind: "emoji";
+  value: string;
   revealAfterSyllableIndex: number;
 };
+
+export type SvgRewardMarker = {
+  kind: "svg";
+  fileName: string;
+  src: string;
+  revealAfterSyllableIndex: number;
+};
+
+export type RewardMarker = EmojiRewardMarker | SvgRewardMarker;
 
 export type ActiveRewardMarker = RewardMarker & {
   key: string;

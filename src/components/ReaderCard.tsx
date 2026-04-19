@@ -63,6 +63,7 @@ function renderDisplayText(displayText: string): ReactNode {
 
 function RewardMascot({ activeRewardMarker }: RewardMascotProps) {
   const rewardKey = activeRewardMarker?.key ?? "idle";
+  const isSvgReward = activeRewardMarker?.kind === "svg";
 
   return (
     <div
@@ -136,7 +137,17 @@ function RewardMascot({ activeRewardMarker }: RewardMascotProps) {
                 }}
                 className="absolute inset-0 z-20 flex items-center justify-center text-[104px] leading-none"
               >
-                <span aria-hidden="true">{activeRewardMarker.emoji}</span>
+                {isSvgReward ? (
+                  <img
+                    aria-hidden="true"
+                    src={activeRewardMarker.src}
+                    alt=""
+                    className="h-[120px] w-[120px] object-contain drop-shadow-lg"
+                    draggable={false}
+                  />
+                ) : (
+                  <span aria-hidden="true">{activeRewardMarker.value}</span>
+                )}
               </motion.div>
             ) : (
               <motion.svg

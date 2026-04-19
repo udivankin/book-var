@@ -26,7 +26,7 @@ export function UploadModal({ level, onClose, onFileUpload }: UploadModalProps) 
 
         <h2 className="text-2xl font-black mb-4">Твой словарь ({level === "words" ? "Слова" : "Предложения"})</h2>
         <p className="text-gray-500 mb-6 font-medium">
-          Загрузи файл .txt, где слоги разделены минусом, а ударение - большая буква (напр. ко-рО-ва).
+          Загрузи файл .txt, где слоги разделены минусом, ударение - большая буква, а награда может быть эмодзи или SVG в скобках: ко-рО-ва[🐄], гра-нат[гранат.svg].
         </p>
 
         <div className="flex flex-col gap-4">

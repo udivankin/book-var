@@ -11,6 +11,7 @@ import type {
 import { formatReaderDisplayText, normalizeSpeechText } from "./wordParser";
 
 const LETTER_PATTERN = /[A-Za-zА-Яа-яЁё]/;
+const SVG_REWARD_PATTERN = /^[^/\\]+\.svg$/i;
 
 const EMPTY_PARSED_ENTRY: ParsedDictionaryEntry = {
   rawText: "",
@@ -130,16 +131,28 @@ function extractRewardMarkers(input: string): RewardMarker[] {
   const rewardMarkers: RewardMarker[] = [];
 
   for (const match of input.matchAll(/\[([^[\]]+)\]/g)) {
-    const [, emoji] = match;
+    const [, markerValue] = match;
     const matchIndex = match.index ?? -1;
     const prefix = stripRewardAnnotations(input.slice(0, matchIndex));
+    const normalizedMarkerValue = markerValue.trim();
 
-    if (!emoji.trim()) {
+    if (!normalizedMarkerValue) {
+      continue;
+    }
+
+    if (SVG_REWARD_PATTERN.test(normalizedMarkerValue)) {
+      rewardMarkers.push({
+        kind: "svg",
+        fileName: normalizedMarkerValue,
+        src: `/data/svg/${encodeURIComponent(normalizedMarkerValue)}`,
+        revealAfterSyllableIndex: getLastReadableSyllableIndex(prefix),
+      });
       continue;
     }
 
     rewardMarkers.push({
-      emoji: emoji.trim(),
+      kind: "emoji",
+      value: normalizedMarkerValue,
       revealAfterSyllableIndex: getLastReadableSyllableIndex(prefix),
     });
   }
