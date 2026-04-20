@@ -2,6 +2,11 @@
 
 Интерактивное приложение для обучения детей чтению по слогам. 
 
+[![Deployment Status](https://github.com/udivankin/book-var/actions/workflows/deploy.yml/badge.svg)](https://github.com/udivankin/book-var/actions/workflows/deploy.yml)
+[![Live Demo](https://img.shields.io/badge/demo-online-brightgreen)](https://udivankin.github.io/book-var/)
+
+![Скриншот приложения](public/book-var.png)
+
 ## ✨ Основные функции
 
 - **Чтение по слогам**: Слова и предложения автоматически разбиваются на слоги для удобного восприятия.
