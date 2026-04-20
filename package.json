@@ -1,7 +1,7 @@
 {
   "name": "book-var",
   "private": true,
-  "version": "0.1.0",
+  "version": "0.2.0",
   "type": "module",
   "engines": {
     "node": ">=22"
@@ -11,7 +11,8 @@
     "build": "vite build",
     "preview": "vite preview",
     "clean": "rm -rf dist",
-    "lint": "tsc --noEmit"
+    "lint": "tsc --noEmit",
+    "publish": "node scripts/publish.mjs"
   },
   "dependencies": {
     "canvas-confetti": "1.9.4",

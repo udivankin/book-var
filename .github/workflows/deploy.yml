@@ -1,17 +1,39 @@
 name: Deploy to GitHub Pages
 
 on:
-  release:
-    types: [ published ]
+  push:
+    tags:
+      - "*"
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
   pages: write
   id-token: write
 
 jobs:
+  create-release:
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Create release if missing
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          tag="${GITHUB_REF_NAME}"
+
+          if gh release view "$tag" >/dev/null 2>&1; then
+            exit 0
+          fi
+
+          gh release create "$tag" \
+            --title "$tag" \
+            --generate-notes
+
   deploy:
+    needs: create-release
+    if: github.event_name == 'workflow_dispatch' || needs.create-release.result ==
+      'success'
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
