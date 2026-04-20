@@ -1,9 +1,10 @@
 # Букварь Онлайн (Online Primer)
 
-Интерактивное приложение для обучения детей чтению по слогам. 
+Интерактивное приложение для обучения детей чтению по слогам.
+
+**🚀 [Перейти к приложению (Live Demo)](https://udivankin.github.io/book-var/)**
 
 [![Deployment Status](https://github.com/udivankin/book-var/actions/workflows/deploy.yml/badge.svg)](https://github.com/udivankin/book-var/actions/workflows/deploy.yml)
-[![Live Demo](https://img.shields.io/badge/demo-online-brightgreen)](https://udivankin.github.io/book-var/)
 
 ![Скриншот приложения](public/book-var.png)
 
